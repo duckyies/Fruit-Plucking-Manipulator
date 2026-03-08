@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fruit Plucking Manipulator</title>
+    <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+  </head>
+  <body>
+
+    <!-- ===== NAVBAR ===== -->
+    <header class="site-header">
+      <nav class="main-nav">
+        <div class="nav-left">
+          <span class="nav-logo" style="font-size:1.4rem;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#3a9e3a,#1a5c1a);width:32px;height:32px;border-radius:50%;">🍌</span>
+          <span class="course-title">22AIE214 — Introduction to AI &amp; Robotics</span>
+        </div>
+        <ul class="nav-links">
+          <li><a href="#hero">Home</a></li>
+          <li><a href="#objectives">Objectives</a></li>
+          <li><a href="#architecture">Pipeline</a></li>
+          <li><a href="#methodology">Methodology</a></li>
+          <li><a href="#robot-specs">Hardware</a></li>
+          <li><a href="#doosan-api">Doosan API</a></li>
+          <li><a href="#timeline">Timeline</a></li>
+          <li><a href="#results">Results</a></li>
+          <li><a href="#team">Team</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- ===== HERO ===== -->
+    <section id="hero" class="hero">
+      <div class="hero-content">
+        <span class="hero-eyebrow">Robotics · Computer Vision · Deep Learning</span>
+        <h1>Fruit Plucking Manipulator</h1>
+        <p class="subtitle">Autonomous Harvest via YOLO Detection &amp; Depth-Guided Control</p>
+        <p class="summary">
+          An autonomous robotic system that uses a wrist-mounted Intel RealSense RGB-D camera,
+          a custom-trained YOLOv8 model, and a 6-DOF Doosan A0509 cobot to detect and harvest
+          bananas in real time — with statistically validated depth estimation and iterative approach control.
+        </p>
+        <div class="hero-badges">
+          <span class="badge badge-green">YOLOv8</span>
+          <span class="badge badge-green">Intel RealSense D435i</span>
+          <span class="badge badge-gold">Doosan A0509</span>
+          <span class="badge badge-gold">DH Gripper</span>
+          <span class="badge badge-green">ROS 2</span>
+          <span class="badge badge-green">Python</span>
+        </div>
+        <a href="#overview" class="btn">Explore the Project</a>
+      </div>
+    </section>
+
+    <!-- ===== OVERVIEW ===== -->
+    <section id="overview" class="container section">
+      <h2>Project Overview</h2>
+      <p>
+        This project builds an end-to-end autonomous fruit-harvesting pipeline. A Doosan A0509 collaborative
+        robot arm, equipped with a wrist-mounted Intel RealSense D435i camera and a DH Robotics parallel
+        gripper, scans its environment by sweeping Joint 5. When the onboard YOLOv8 detector spots a banana
+        with sufficient confidence, the system enters a 2-second depth-validation window — collecting multiple
+        depth readings, rejecting statistical outliers (σ-filtering), and averaging the survivors to obtain a
+        stable 3D target. The robot then approaches iteratively, recalculating depth at each 50 mm step via
+        a hand-eye calibration matrix, before closing the gripper and returning to rest.
+      </p>
+    </section>
+
+    <!-- ===== OBJECTIVES ===== -->
+    <section id="objectives" class="container section">
+      <h2>Project Objectives</h2>
+      <div class="cards">
+        <div class="card">
+          <span class="card-icon">🍌</span>
+          <h3>Fruit Detection</h3>
+          <p>Detect ripe and unripe bananas in real time using a YOLOv8 model trained on a custom dataset, with per-class confidence thresholding.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">📐</span>
+          <h3>Depth Estimation</h3>
+          <p>Use the RealSense depth stream to obtain robust 3D fruit positions, validated over a 2-second window using σ-based outlier rejection.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔄</span>
+          <h3>Hand-Eye Calibration</h3>
+          <p>Transform detected fruit coordinates from the camera frame to the robot's base frame using a pre-calibrated T_tool_cam extrinsic matrix.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">🤖</span>
+          <h3>Iterative Approach</h3>
+          <p>Navigate the arm toward the target in 50 mm steps with mid-approach depth recalculation to correct for noisy initial estimates.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">✊</span>
+          <h3>Gripper Control</h3>
+          <p>Drive the DH Robotics parallel gripper via Modbus RTU over USB to open, close, and recover autonomously during the pick sequence.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">🖥️</span>
+          <h3>Live GUI</h3>
+          <p>Provide an operator Tkinter interface showing the annotated camera feed, Cartesian position, joint angles, and manual control buttons.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== COURSE MAPPING ===== -->
+    <section id="course-mapping" class="container section">
+      <h2>Course Mapping</h2>
+      <table class="course-table">
+        <thead>
+          <tr>
+            <th>Course Unit</th>
+            <th>Application in This Project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Computer Vision</td><td>YOLOv8 fruit detection, bounding box extraction, depth deprojection</td></tr>
+          <tr><td>Machine Learning</td><td>Custom YOLO model training on labelled banana dataset (ripe / unripe classes)</td></tr>
+          <tr><td>Robotics</td><td>6-DOF manipulator kinematics, joint-space and Cartesian-space motion commands</td></tr>
+          <tr><td>Control Systems</td><td>Iterative step-based approach controller with mid-approach recalculation loop</td></tr>
+          <tr><td>Signal Processing</td><td>Statistical outlier rejection (σ-filtering) of noisy depth readings</td></tr>
+          <tr><td>Systems Integration</td><td>ROS 2 node, Tkinter GUI, camera threads, Modbus gripper driver — all fused in real time</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== PIPELINE ===== -->
+    <section id="architecture" class="container section">
+      <h2>System Pipeline</h2>
+      <div class="pipeline">
+        <div class="block">RealSense<br>RGB-D Stream</div>
+        <div class="arrow">→</div>
+        <div class="block">YOLOv8<br>Detection</div>
+        <div class="arrow">→</div>
+        <div class="block">Depth<br>Deprojection</div>
+        <div class="arrow">→</div>
+        <div class="block gold-block">σ-Filter<br>Validation</div>
+        <div class="arrow">→</div>
+        <div class="block gold-block">Hand-Eye<br>Transform</div>
+        <div class="arrow">→</div>
+        <div class="block">Iterative<br>Approach</div>
+        <div class="arrow">→</div>
+        <div class="block">DH Gripper<br>Pick &amp; Rest</div>
+      </div>
+      <p class="diagram-description">
+        Data flows from the wrist camera through detection and 3D localisation, is validated
+        statistically, transformed into robot coordinates, and executed as a closed-loop approach
+        sequence ending in a grip.
+      </p>
+    </section>
+
+    <!-- ===== METHODOLOGY ===== -->
+    <section id="methodology" class="container section">
+      <h2>Methodology</h2>
+
+      <!-- 1. Detection -->
+      <div class="subsection">
+        <h3>1. YOLOv8 Fruit Detection</h3>
+
+        <h4>1.1 Custom Dataset &amp; Training</h4>
+        <ul>
+          <li>A labelled dataset of banana images was assembled covering <strong>ripe</strong> and <strong>unripe</strong> classes under varied lighting and pose conditions.</li>
+          <li>YOLOv8 (<code>ultralytics</code>) was fine-tuned on this dataset; the best checkpoint is stored at <code>runs/detect/train6/weights/best.pt</code>.</li>
+          <li>Both classes share a label containing <em>"ripe"</em>, allowing the system to filter targets with a simple string match.</li>
+        </ul>
+
+        <h4>1.2 Real-Time Inference</h4>
+        <ul>
+          <li>Each camera frame is passed to <code>model(frame, verbose=False)</code> on every GUI tick (≈ 30 ms cadence).</li>
+          <li>Detections are drawn with bounding boxes: <span style="color:#ff6b6b;">red</span> for ripe/unripe targets, <span style="color:#6bff6b;">green</span> for others.</li>
+          <li>A minimum confidence threshold of <strong>0.70</strong> is enforced before a detection triggers any robot motion.</li>
+        </ul>
+
+        <h4>1.3 Detection Gate</h4>
+        <ul>
+          <li>Detection is only active when <code>search_active = True</code> — set after the robot has settled at its search pose — to prevent false triggers during motion.</li>
+          <li>Once a target is locked (<code>target_locked</code>), detection is suppressed for the rest of the pick cycle.</li>
+        </ul>
+      </div>
+
+      <!-- 2. Depth -->
+      <div class="subsection">
+        <h3>2. Depth Estimation &amp; Statistical Validation</h3>
+
+        <h4>2.1 Depth Deprojection</h4>
+        <ul>
+          <li>The RealSense SDK function <code>rs2_deproject_pixel_to_point(intrinsics, [cx, cy], depth)</code> converts the bounding-box centroid pixel into a metric 3D point (X, Y, Z) in the camera frame.</li>
+          <li>Readings where <code>depth ≤ 0</code> or <code>depth ≥ 2.0 m</code> are discarded as out-of-range.</li>
+          <li>Z is sign-flipped (<code>−Z</code>) to align with the robot's coordinate convention.</li>
+        </ul>
+
+        <h4>2.2 2-Second Collection Window</h4>
+        <ul>
+          <li>On the <strong>first detection</strong> of a banana, the system starts a 2-second accumulation phase rather than moving immediately.</li>
+          <li>Every subsequent frame that still detects the banana appends a new (X, Y, Z) reading to <code>banana_readings</code>.</li>
+          <li>A live countdown overlay (<em>"Validating depth… 1.4 s"</em>) is drawn on the camera feed.</li>
+          <li>If the banana disappears mid-collection, the buffer is cleared and the phase resets.</li>
+        </ul>
+
+        <h4>2.3 σ-Based Outlier Rejection</h4>
+        <ul>
+          <li>After the window closes, <code>filter_and_average(readings, sigma=2.0)</code> is called.</li>
+          <li>The mean and standard deviation are computed per axis (X, Y, Z).</li>
+          <li>Any reading whose value on <em>any</em> axis falls outside <strong>mean ± 2σ</strong> is discarded.</li>
+          <li>If fewer than 3 clean readings survive, the move is aborted and detection resets — preventing erroneous grasps.</li>
+          <li>The survivors are averaged to produce a single stable 3D target coordinate.</li>
+        </ul>
+      </div>
+
+      <!-- 3. Hand-Eye -->
+      <div class="subsection">
+        <h3>3. Hand-Eye Calibration &amp; Coordinate Transform</h3>
+
+        <h4>3.1 Calibration Matrix</h4>
+        <ul>
+          <li>The 4 × 4 homogeneous matrix <strong>T_tool_cam</strong> encodes the rigid transform from the camera frame to the robot tool (flange) frame.</li>
+          <li>It is loaded once at startup from <code>T_tool_cam.txt</code> and printed for operator verification.</li>
+        </ul>
+
+        <div class="code-block">
+          <span class="cm"># Loaded transform (tool → camera)</span><br>
+          T_tool_cam =<br>
+          &nbsp; [[ 0.890  0.455 -0.030 | -74.8 mm ]<br>
+          &nbsp;&nbsp; [ 0.455 -0.886  0.091 |  11.5 mm ]<br>
+          &nbsp;&nbsp; [ 0.015 -0.095 -0.995 |  14.9 mm ]<br>
+          &nbsp;&nbsp; [ 0.000  0.000  0.000 |   1.000  ]]
+        </div>
+
+        <h4>3.2 Base-Frame Transform</h4>
+        <ul>
+          <li><code>get_current_posx()</code> returns the TCP pose as [x, y, z, rz1, ry, rz2] (ZYZ Euler, mm + degrees).</li>
+          <li><code>doosan_tcp_to_matrix(tcp)</code> converts this into a 4 × 4 homogeneous matrix <strong>T_base_tool</strong>.</li>
+          <li>The fruit point in the camera frame is promoted to homogeneous coordinates and chained: <code>P_base = T_base_tool @ T_tool_cam @ P_cam</code>.</li>
+          <li>The result is converted back to mm for the Doosan API.</li>
+        </ul>
+      </div>
+
+      <!-- 4. Scanning -->
+      <div class="subsection">
+        <h3>4. Scanning Strategy</h3>
+        <ul>
+          <li>The robot first moves linearly to a fixed <strong>SEARCH_POSX</strong> Cartesian pose.</li>
+          <li>Joint 5 (wrist tilt) then sweeps from <strong>−90° to +90°</strong> in 5° steps at 20 °/s, panning the wrist camera across the workspace.</li>
+          <li>Scanning runs in a dedicated daemon thread; detection is only enabled after the robot reaches the search pose to avoid motion blur false-positives.</li>
+          <li>When a target is validated, scanning halts (<code>self.scanning = False</code>) and the approach begins.</li>
+        </ul>
+      </div>
+
+      <!-- 5. Approach -->
+      <div class="subsection">
+        <h3>5. Iterative Approach &amp; Mid-Step Recalculation</h3>
+
+        <h4>5.1 Step-Based Motion</h4>
+        <ul>
+          <li>The robot advances toward the target in <strong>50 mm linear steps</strong> using <code>movel()</code>.</li>
+          <li>If the initial distance exceeds 500 mm, a 200 mm safety margin is subtracted from the first step.</li>
+          <li>When the remaining distance falls within 50 + 150 mm, a final approach move stops 150 mm short of the target before a small joint-space dip (J2 − 3°) to lower the gripper onto the fruit.</li>
+        </ul>
+
+        <h4>5.2 Mid-Approach Depth Recalculation</h4>
+        <ul>
+          <li>After each 50 mm step, a fresh single-frame depth estimate (<code>_recalculate_banana_depth</code>) is obtained.</li>
+          <li>If the new base-frame distance is more than <strong>80 mm closer</strong> than the current target, the target is updated — correcting for depth errors in the initial estimate.</li>
+          <li>Otherwise the original target is kept, avoiding jitter from noisy single-frame readings.</li>
+        </ul>
+
+        <h4>5.3 Grip Sequence</h4>
+        <ul>
+          <li>The gripper is pre-closed at the start of the approach for safety and collision detection.</li>
+          <li>On reaching the fruit, <code>dh_gripper.open()</code> is called, the arm pauses 3 s, then returns to <strong>REST_JOINTS</strong>.</li>
+          <li>(In close-range scenarios, a direct <code>close → rest</code> shortcut is used.)</li>
+        </ul>
+      </div>
+
+    </section>
+
+    <!-- ===== ROBOT SPECS ===== -->
+    <section id="robot-specs" class="container section">
+      <h2>Robot Specifications</h2>
+
+      <a class="sim-preview"
+         href="https://download.encycam.com/MachineMaker/online/index.html?app=Ency&mechanismGuid=%7B086DA394-09FD-4623-A990-32E35740A546%7D"
+         target="_blank">
+        <img src="robot.png" style="width:300px;height:300px;" alt="Doosan A0509 3D Preview">
+      </a>
+
+      <div class="spec-layout">
+        <table class="course-table">
+          <tr><th>Type</th><td>Collaborative Robot (Cobot)</td></tr>
+          <tr><th>Brand</th><td>Doosan Robotics</td></tr>
+          <tr><th>Model</th><td>A0509</td></tr>
+          <tr><th>Axes</th><td>6</td></tr>
+          <tr><th>Payload</th><td>5 kg</td></tr>
+          <tr><th>Reach</th><td>900 mm</td></tr>
+          <tr><th>Repeatability</th><td>±0.030 mm</td></tr>
+          <tr><th>Weight</th><td>21 kg</td></tr>
+          <tr><th>Speed (rated payload)</th><td>1 m/s</td></tr>
+          <tr><th>IP Rating</th><td>IP54</td></tr>
+          <tr><th>Operating Temperature</th><td>−5 to 45 °C</td></tr>
+          <tr><th>Mounting</th><td>Any orientation</td></tr>
+          <tr><th>Controller</th><td>Doosan Controller, DART Platform</td></tr>
+          <tr><th>Power Supply</th><td>DC 24 V / Max 3 A</td></tr>
+          <tr><th>Power Consumption</th><td>370 W</td></tr>
+          <tr><th>Communication</th><td>Digital I/O, RS-485, ModbusTCP, PROFINET, EtherNet/IP, TCP/IP</td></tr>
+          <tr><th>Safety</th><td>STO / SS1, Joint Position &amp; Speed Monitoring, TCP Speed Monitoring, Collision Detection</td></tr>
+          <tr><th>Certifications</th><td>ISO/TS 15066, ISO 10218-1/-2, PL d, SIL 2, CE, NRTL, KCs</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== GRIPPER ===== -->
+    <section id="gripper" class="container section">
+      <h2>DH Robotics Gripper</h2>
+
+      <div class="gripper-layout">
+        <div class="gripper-image">
+          <img src="gripper.webp" alt="DH Robotics Gripper" />
+        </div>
+        <div class="gripper-text">
+          <p>The DH Robotics parallel gripper serves as the end-effector and is controlled via <strong>Modbus RTU</strong> over a USB serial link (<code>/dev/ttyUSB0</code>, 115 200 baud). A custom Python driver wraps <code>minimalmodbus</code> with auto-recovery on slave fault.</p>
+          <ul>
+            <li>Two-finger parallel gripper with high grip precision</li>
+            <li>Compact, lightweight — ideal for cobots</li>
+            <li>Position control via register <code>0x0103</code> (0 = open, 1000 = fully closed)</li>
+            <li>Speed (register <code>0x0101</code>) and force (register <code>0x0102</code>) configurable</li>
+            <li>Auto-homing on initialisation via register <code>0x0100</code></li>
+            <li>Automatic re-initialisation on <code>SlaveReportedException</code></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CAMERA ===== -->
+    <section id="camera" class="container section">
+      <h2>Intel RealSense D435i Camera</h2>
+      <div class="method-image">
+        <img src="vision.png" alt="Intel RealSense D435i" style="width:350px;height:275px;" />
+      </div>
+      <div class="subsection">
+        <h3>Overview</h3>
+        <ul>
+          <li>The D435i is mounted at the robot <strong>wrist (tool flange)</strong>, giving it an eye-in-hand configuration that moves with the arm during scanning.</li>
+          <li>Streams 640 × 480 colour and depth at 30 FPS via <code>pyrealsense2</code>.</li>
+          <li>Depth and colour frames are aligned implicitly by using the same centroid pixel on both streams.</li>
+        </ul>
+
+        <h3>Camera Data Streams Used</h3>
+        <ul>
+          <li><strong>RGB Stream</strong> — fed to YOLOv8 for fruit detection and GUI display.</li>
+          <li><strong>Depth Stream</strong> — pixel-wise distance used for 3D localisation and σ-validation.</li>
+        </ul>
+
+        <h3>Key Specifications</h3>
+        <table class="course-table">
+          <tr><th>Feature</th><th>Value</th></tr>
+          <tr><td>Depth Technology</td><td>Active Stereo Vision</td></tr>
+          <tr><td>Depth Range</td><td>~0.2 m – 10 m</td></tr>
+          <tr><td>RGB Resolution (configured)</td><td>640 × 480</td></tr>
+          <tr><td>Depth Resolution (configured)</td><td>640 × 480</td></tr>
+          <tr><td>Frame Rate</td><td>30 FPS</td></tr>
+          <tr><td>Interface</td><td>USB 3.0</td></tr>
+          <tr><td>Valid Depth Range (code)</td><td>0 – 2.0 m (out-of-range frames discarded)</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== ROS ===== -->
+    <section id="ros" class="container section">
+      <h2>Robot Operating System (ROS 2)</h2>
+      <div class="subsection">
+        <h3>Role in This Project</h3>
+        <ul>
+          <li>The system is initialised with <code>rclpy.init()</code> and runs as a ROS 2 node named <code>banana_gui</code> under namespace <code>dsr01</code>.</li>
+          <li>The Doosan driver is loaded via <code>DR_init</code>, which patches the ROS node handle into the robot SDK.</li>
+          <li>The camera capture loop runs in a separate Python <code>threading.Thread</code>, decoupled from the GUI event loop.</li>
+        </ul>
+
+        <h3>Node Architecture</h3>
+        <ul>
+          <li><strong>Camera Thread</strong> — continuously pulls frames from the RealSense pipeline and stores them in shared memory protected by a <code>threading.Lock()</code>.</li>
+          <li><strong>GUI / Detection Thread</strong> — reads frames, runs YOLO, manages the depth-collection state machine, and updates the Tkinter display at 30 ms intervals.</li>
+          <li><strong>Motion Threads</strong> — each motion command (search, approach, rest) spawns a daemon thread so the GUI remains responsive.</li>
+          <li><strong>Gripper Thread</strong> — initialisation and grip cycles run asynchronously to avoid blocking.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== DOOSAN API ===== -->
+    <section id="doosan-api" class="container section">
+      <h2>Doosan Robot API (DSR_ROBOT2)</h2>
+      <p>
+        The <code>DSR_ROBOT2</code> package exposes a Python interface to the Doosan DART controller over ROS 2.
+        The project uses the following API functions:
+      </p>
+
+      <div class="subsection">
+        <h3>Motion Commands</h3>
+        <ul>
+          <li><strong>movel(posx, v, a, ref, mod)</strong> — moves the TCP along a straight Cartesian line to the target pose. Used for all approach steps and the search-pose move.</li>
+          <li><strong>movej(posj, vel, acc)</strong> — moves the robot in joint space. Used for rest-pose transitions and the final wrist-dip during approach.</li>
+          <li><strong>posj(j1…j6)</strong> — constructs a joint-position data object from six angles.</li>
+        </ul>
+
+        <h3>State Reading</h3>
+        <ul>
+          <li><strong>get_current_posx()</strong> — returns the TCP's current Cartesian pose [x, y, z, rz1, ry, rz2] used to chain the hand-eye transform.</li>
+          <li><strong>get_current_posj()</strong> — returns joint angles [J1…J6] used during scanning and final-approach adjustments.</li>
+        </ul>
+
+        <h3>Robot Mode</h3>
+        <ul>
+          <li><strong>set_robot_mode(ROBOT_MODE_AUTONOMOUS)</strong> — enables full autonomous execution without teach-pendant confirmation.</li>
+          <li><strong>set_velx / set_accx</strong> — global Cartesian velocity and acceleration limits applied at startup.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== USER FUNCTIONS ===== -->
+    <section id="user-funcs" class="container section">
+      <h2>Key Control Functions</h2>
+      <div class="func-grid">
+
+        <div class="func-card">
+          <span class="func-name">go_search()</span>
+          <p class="func-desc">Disables detection, drives the arm to SEARCH_POSX via movel(), then spawns the scan_j5() thread and re-enables detection.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">scan_j5()</span>
+          <p class="func-desc">Sweeps Joint 5 from −90° to +90° in 5° steps, continuously panning the wrist camera to find fruit in the workspace.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">update_camera()</span>
+          <p class="func-desc">Core 30 ms GUI loop. Runs YOLO on the latest frame, manages the depth-collection state machine, updates the annotated video display.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">_start_collection()</span>
+          <p class="func-desc">On first banana sighting, initialises the 2-second depth reading buffer and timestamps the start of the validation window.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">_finish_collection()</span>
+          <p class="func-desc">Calls filter_and_average() on the buffer; if enough clean readings remain, extracts a stable 3D target and triggers move_to_banana().</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">camera_to_base()</span>
+          <p class="func-desc">Chains T_base_tool @ T_tool_cam @ P_cam to transform a camera-frame 3D point into the robot base frame in mm.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">move_to_banana()</span>
+          <p class="func-desc">Iterative approach loop: 50 mm steps with mid-step depth recalculation, final 150 mm hold-off, wrist dip, and grip sequence.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">filter_and_average()</span>
+          <p class="func-desc">σ-based outlier rejection on a list of (X, Y, Z) readings; discards values beyond 2σ per axis and averages the survivors.</p>
+        </div>
+
+        <div class="func-card">
+          <span class="func-name">go_rest()</span>
+          <p class="func-desc">Halts scanning and detection, runs a gripper open/close test cycle, then drives the arm to REST_JOINTS in joint space.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===== TIMELINE ===== -->
+    <section id="timeline" class="container section">
+      <h2>Week-wise Timeline</h2>
+      <div class="timeline-progress">
+        <div class="step">
+          <div class="circle"></div>
+          <p><b>Week 1</b><br>Hardware Setup &amp; Dataset Collection</p>
+        </div>
+        <div class="step">
+          <div class="circle"></div>
+          <p><b>Week 2</b><br>YOLO Model Training &amp; Validation</p>
+        </div>
+        <div class="step">
+          <div class="circle"></div>
+          <p><b>Week 3</b><br>Hand-Eye Calibration &amp; Depth Pipeline</p>
+        </div>
+        <div class="step">
+          <div class="circle"></div>
+          <p><b>Week 4</b><br>Approach Control &amp; Gripper Integration</p>
+        </div>
+        <div class="step">
+          <div class="circle"></div>
+          <p><b>Week 5</b><br>Full System Integration &amp; Testing</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== RESULTS ===== -->
+    <section id="results" class="container section">
+      <h2>Results &amp; Discussion</h2>
+      <div class="cards">
+        <div class="card">
+          <span class="card-icon">🎯</span>
+          <h3>Detection Performance</h3>
+          <p>YOLOv8 achieved reliable detection of bananas at the 0.70 confidence threshold across varied lighting and orientations.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">📊</span>
+          <h3>Depth Validation</h3>
+          <p>The 2-second σ-filter window successfully eliminated noisy depth spikes, providing a stable 3D target before every approach.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔗</span>
+          <h3>System Integration</h3>
+          <p>All subsystems — ROS 2, camera thread, YOLO, gripper driver, and GUI — ran concurrently without deadlock or frame drops.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">⚠️</span>
+          <h3>Challenges</h3>
+          <p>Depth accuracy degraded near the edges of the RealSense's valid range; the mid-approach recalculation loop was added to compensate.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔮</span>
+          <h3>Future Work</h3>
+          <p>Multi-fruit prioritisation, stem detection for precise plucking angle, and integration with a mobile base for field deployment.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== REFERENCES ===== -->
+    <section id="references" class="container section">
+      <h2>References</h2>
+      <ol>
+        <li>Redmon, J., et al. "YOLOv8: Real-time object detection." Ultralytics, 2023.</li>
+        <br />
+        <li>Intel Corporation. "Intel® RealSense™ D400 Series Product Family Datasheet." 2022.</li>
+        <br />
+        <li>Doosan Robotics. "A-Series Cobot Technical Specification Manual." 2023.</li>
+        <br />
+        <li>DH Robotics. "AG-Series Adaptive Robot Gripper User Manual." 2022.</li>
+        <br />
+        <li>Correll, N., et al. "Analysis and observations from the first Amazon Picking Challenge." <em>IEEE Transactions on Automation Science and Engineering</em>, 15(1), 2018.</li>
+      </ol>
+    </section>
+
+    <!-- ===== DEMO VIDEO ===== -->
+    <section id="demo-video" class="container section">
+      <h2>Project Demonstration</h2>
+      <div class="video-container">
+        <video controls>
+          <source src="simu.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </section>
+
+    <!-- ===== TEAM ===== -->
+    <section id="team" class="container section">
+      <h2>Done By</h2>
+      <div class="team-cards">
+        <div class="team-card">
+          <h3>Anantha Krishna S K</h3>
+          <p>CB.SC.U4AIE24102</p>
+        </div>
+        <div class="team-card">
+          <h3>Sri Ram Krishna M</h3>
+          <p>CB.SC.U4AIE24127</p>
+        </div>
+        <div class="team-card">
+          <h3>Devi Sri Soumith</h3>
+          <p>CB.SC.U4AIE24155</p>
+        </div>
+        <div class="team-card">
+          <h3>Yogesh J K</h3>
+          <p>CB.SC.U4AIE24161</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <p>🍌 Fruit Plucking Manipulator &nbsp;·&nbsp; 22AIE214 Introduction to AI &amp; Robotics &nbsp;·&nbsp; 2026</p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
