@@ -23,6 +23,7 @@
           <li><a href="#objectives">Objectives</a></li>
           <li><a href="#architecture">Pipeline</a></li>
           <li><a href="#methodology">Methodology</a></li>
+          <li><a href="#handeye">Hand-Eye</a></li>
           <li><a href="#robot-specs">Hardware</a></li>
           <li><a href="#doosan-api">Doosan API</a></li>
           <li><a href="#timeline">Timeline</a></li>
@@ -211,31 +212,135 @@
       </div>
 
       <!-- 3. Hand-Eye -->
-      <div class="subsection">
+      <div class="subsection" id="handeye">
         <h3>3. Hand-Eye Calibration &amp; Coordinate Transform</h3>
 
-        <h4>3.1 Calibration Matrix</h4>
+        <p style="color:var(--text-secondary);line-height:1.85;margin-bottom:var(--space-lg);">
+          The camera is mounted at the robot's wrist, so its pose changes with every joint movement.
+          To act on what it sees, the system must know <em>exactly</em> where the camera sits relative
+          to the robot's tool flange — and then chain that through the robot's live forward kinematics
+          to get a position the arm can actually move to. This is the hand-eye calibration problem,
+          and it is solved in two stages: <strong>(1)</strong> measuring the rigid offset between
+          camera and flange using a ChArUco board, and <strong>(2)</strong> applying that offset at
+          runtime to transform any detected point into the robot's base frame.
+        </p>
+
+        <!-- 3.1 Why calibration is needed -->
+        <h4>3.1 Why Hand-Eye Calibration Is Needed</h4>
         <ul>
-          <li>The 4 × 4 homogeneous matrix <strong>T_tool_cam</strong> encodes the rigid transform from the camera frame to the robot tool (flange) frame.</li>
-          <li>It is loaded once at startup from <code>T_tool_cam.txt</code> and printed for operator verification.</li>
+          <li>The RealSense camera reports fruit positions in its own <strong>camera frame</strong> — an
+              arbitrary coordinate system centred on the camera lens, with axes that depend on how the
+              camera is physically mounted on the flange.</li>
+          <li>The Doosan API works exclusively in the <strong>robot base frame</strong> — a fixed world
+              coordinate system centred at the robot's base.</li>
+          <li>Without knowing the precise rotation and translation between these two frames, any
+              attempt to command the robot to a detected fruit position would be wildly off — even a
+              few millimetres of mounting error propagates into centimetres of positional error at the
+              tip of the arm.</li>
+          <li>Because the camera is at the <em>wrist</em> (eye-in-hand configuration), this offset
+              changes the effective target coordinates every time a joint moves, so the calibration
+              matrix must be chained with live robot kinematics on every frame.</li>
+        </ul>
+
+        <!-- 3.2 ChArUco Board -->
+        <h4>3.2 ChArUco Calibration Board</h4>
+
+        <div class="method-image">
+          <img src="charuco.jpg" alt="ChArUco Calibration Board" id="charuco-img"
+               onerror="this.style.display='none';document.getElementById('charuco-placeholder').style.display='flex';" />
+          <div id="charuco-placeholder" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:200px;border:2px dashed rgba(93,191,93,0.25);border-radius:12px;color:var(--text-muted);font-size:0.9rem;gap:0.5rem;">
+            <span style="font-size:2.5rem;">🏁</span>
+            <span>ChArUco board image — replace <code>charuco.jpg</code></span>
+          </div>
+        </div>
+
+        <ul>
+          <li>A <strong>ChArUco board</strong> is a hybrid calibration target that combines a standard
+              chess-board pattern with ArUco fiducial markers inside each square.</li>
+          <li>The chessboard corners provide sub-pixel accurate corner detection; the ArUco markers
+              allow each corner to be <em>uniquely identified</em> even when parts of the board are
+              occluded — making it far more robust than a plain chessboard.</li>
+          <li>Using OpenCV's <code>aruco</code> module, the board's 3D pose (rotation + translation)
+              relative to the camera is estimated from a single image, giving a precise measurement
+              of where the board is in the camera frame.</li>
+          <li>During calibration, the robot is commanded to <strong>multiple known joint poses</strong>.
+              At each pose, the camera captures an image of the board (which is fixed in the world),
+              and the board's pose in the camera frame is recorded.</li>
+          <li>Simultaneously, the robot's TCP pose is read from <code>get_current_posx()</code>,
+              giving the flange's pose in the base frame for the same configuration.</li>
+          <li>This produces a set of paired measurements: <em>how the board looks from the camera</em>
+              versus <em>where the flange is in the world</em>. OpenCV's
+              <code>calibrateHandEye()</code> (Tsai method or similar) solves for the unique 4 × 4
+              transform <strong>T_tool_cam</strong> that is consistent across all poses.</li>
+        </ul>
+
+        <!-- 3.3 The calibration matrix -->
+        <h4>3.3 The Resulting T_tool_cam Matrix</h4>
+        <ul>
+          <li><strong>T_tool_cam</strong> is a 4 × 4 homogeneous rigid-body transform that encodes
+              the rotation and translation from the camera optical frame to the robot tool (flange) frame.</li>
+          <li>It is computed offline, saved to <code>T_tool_cam.txt</code>, and loaded once at
+              startup — its values are then fixed for the lifetime of the physical assembly.</li>
+          <li>The translation part (last column) tells us how far the camera lens is offset from the
+              flange origin; the rotation part (top-left 3 × 3) accounts for any angular tilt or twist
+              in the mounting bracket.</li>
         </ul>
 
         <div class="code-block">
-          <span class="cm"># Loaded transform (tool → camera)</span><br>
-          T_tool_cam =<br>
-          &nbsp; [[ 0.890  0.455 -0.030 | -74.8 mm ]<br>
-          &nbsp;&nbsp; [ 0.455 -0.886  0.091 |  11.5 mm ]<br>
-          &nbsp;&nbsp; [ 0.015 -0.095 -0.995 |  14.9 mm ]<br>
-          &nbsp;&nbsp; [ 0.000  0.000  0.000 |   1.000  ]]
+          <span class="cm"># T_tool_cam — camera → tool frame (loaded from T_tool_cam.txt)</span><br>
+          <span class="cm">#              [ ——— Rotation ———  | Translation ]</span><br>
+          &nbsp;[[ 0.890 &nbsp; 0.455 &nbsp;-0.030 &nbsp;| &nbsp;-74.8 mm ]<br>
+          &nbsp;&nbsp;[ 0.455 &nbsp;-0.886 &nbsp; 0.091 &nbsp;| &nbsp; 11.5 mm ]<br>
+          &nbsp;&nbsp;[ 0.015 &nbsp;-0.095 &nbsp;-0.995 &nbsp;| &nbsp; 14.9 mm ]<br>
+          &nbsp;&nbsp;[ 0.000 &nbsp; 0.000 &nbsp; 0.000 &nbsp;| &nbsp;&nbsp; 1.000 &nbsp;]]
         </div>
 
-        <h4>3.2 Base-Frame Transform</h4>
+        <!-- 3.4 Runtime transform chain -->
+        <h4>3.4 Runtime Coordinate Transform Chain</h4>
         <ul>
-          <li><code>get_current_posx()</code> returns the TCP pose as [x, y, z, rz1, ry, rz2] (ZYZ Euler, mm + degrees).</li>
-          <li><code>doosan_tcp_to_matrix(tcp)</code> converts this into a 4 × 4 homogeneous matrix <strong>T_base_tool</strong>.</li>
-          <li>The fruit point in the camera frame is promoted to homogeneous coordinates and chained: <code>P_base = T_base_tool @ T_tool_cam @ P_cam</code>.</li>
-          <li>The result is converted back to mm for the Doosan API.</li>
+          <li>At the moment a fruit is detected, the camera outputs a 3D point
+              <strong>P_cam = [X, Y, Z]</strong> in metres, in the camera frame.</li>
+          <li>The robot's current TCP pose is read and converted into
+              <strong>T_base_tool</strong> — a 4 × 4 matrix giving the flange's orientation
+              and position in the base frame — using <code>doosan_tcp_to_matrix()</code>,
+              which builds the full rotation matrix from the Doosan ZYZ Euler angles.</li>
+          <li>The two transforms are chained with the camera point to bring it all the way
+              into the base frame in a single matrix multiply:</li>
         </ul>
+
+        <div class="code-block">
+          <span class="cm"># Step 1 — promote to homogeneous coordinates</span><br>
+          P_cam_h &nbsp;= [X_cam, Y_cam, Z_cam, <span class="kw">1.0</span>]<br><br>
+          <span class="cm"># Step 2 — chain: base ← tool ← camera</span><br>
+          P_base_h = T_base_tool @ T_tool_cam @ P_cam_h<br><br>
+          <span class="cm"># Step 3 — extract XYZ and convert m → mm for Doosan API</span><br>
+          tx, ty, tz = P_base_h[<span class="kw">0</span>]*<span class="kw">1000</span>, P_base_h[<span class="kw">1</span>]*<span class="kw">1000</span>, P_base_h[<span class="kw">2</span>]*<span class="kw">1000</span>
+        </div>
+
+        <ul>
+          <li><strong>T_tool_cam</strong> is constant (calibrated offline) — it accounts for the fixed
+              physical offset of the camera on the flange.</li>
+          <li><strong>T_base_tool</strong> is computed fresh on every call from live joint data — it
+              accounts for where the flange currently is in the world as the arm scans.</li>
+          <li>The resulting <code>(tx, ty, tz)</code> in mm is passed directly to <code>movel()</code>
+              as the Cartesian target the robot should move to.</li>
+          <li>This chain is re-evaluated after every 50 mm approach step using the updated TCP pose,
+              keeping the target coordinates accurate as the geometry changes during the approach.</li>
+        </ul>
+
+        <!-- 3.5 Frame diagram -->
+        <div class="pipeline" style="margin-top:var(--space-xl);">
+          <div class="block" style="font-size:0.75rem;">P_cam<br><span style="color:var(--text-muted);font-size:0.7rem;">Camera Frame<br>(metres)</span></div>
+          <div class="arrow">→</div>
+          <div class="block gold-block" style="font-size:0.75rem;">× T_tool_cam<br><span style="color:var(--text-muted);font-size:0.7rem;">Calibrated Offset<br>(constant)</span></div>
+          <div class="arrow">→</div>
+          <div class="block" style="font-size:0.75rem;">P_tool<br><span style="color:var(--text-muted);font-size:0.7rem;">Tool / Flange Frame</span></div>
+          <div class="arrow">→</div>
+          <div class="block gold-block" style="font-size:0.75rem;">× T_base_tool<br><span style="color:var(--text-muted);font-size:0.7rem;">Live FK<br>(updates per frame)</span></div>
+          <div class="arrow">→</div>
+          <div class="block" style="font-size:0.75rem;">P_base<br><span style="color:var(--text-muted);font-size:0.7rem;">Robot Base Frame<br>(mm → movel)</span></div>
+        </div>
+
       </div>
 
       <!-- 4. Scanning -->
@@ -551,7 +656,7 @@
       <h2>Project Demonstration</h2>
       <div class="video-container">
         <video controls>
-          <source src="simu.mp4" type="video/mp4" />
+          <source src="working.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>
